@@ -7,6 +7,8 @@ Stdlib-only Python 3.11+, no third-party packages.
 
 - `GET /healthz`: liveness check, no auth.
 - `GET /customer/<freshdesk_id>`: Freshdesk company plus the Sugar accounts it maps to (auth required).
+- `GET /users`: CDS user directory from `op=userselect` (userid and username). Auth required.
+- `GET /feed/<uid>`: now returns 404 for a uid not in the CDS user directory.
 - `GET /feed/<uid>`: feed for one CDS uid. Requires `Authorization: Bearer <FEED_API_TOKEN>`.
   Cached per uid for `FEED_CACHE_TTL_SECONDS`. Add `?refresh=1` to bypass the cache.
 
@@ -44,7 +46,7 @@ Tests read the CDS exports and customer map from `data/` (or the folder in `PORT
 
 ## Not yet built
 
-- **uid to customer link.** `/feed/<uid>` takes a CDS uid directly. The Account Details report's ID column is the Sugar account ID, so the CDS uid may not be the same value. Check against one known customer before relying on it.
+- **uid to Sugar link.** The uid is the CDS userid from `op=userselect` (confirmed: 15 is BMW Motorsport). The mapping to Sugar accounts is name-based for now: 332 exact matches, 22 ambiguous and 127 unmatched need review.
 - **Jira.** No client yet. Release notes need Sugar Products, and Jira links need the Build records.
 - **Tickets.** Not included in the Freshdesk client.
 - **Licensed content (releasecategory 6).** The jsonresponder output doesn't include release category, so this needs the objects table or a separate source. Parked until the Contracts module is confirmed.
