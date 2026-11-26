@@ -2,6 +2,7 @@
 
 GET /healthz            -> {"status": "ok"}
 GET /customer/<freshdesk_id> -> Freshdesk company plus linked Sugar account IDs (auth required)
+GET /users              -> CDS user directory (userid and username), auth required
 GET /feed/<uid>         -> feed JSON for that CDS uid (cached per uid); needs Authorization: Bearer <FEED_API_TOKEN>
 GET /feed/<uid>?refresh=1 -> bypass cache and re-query CDS
 
@@ -52,6 +53,12 @@ class FeedService:
         self.freshdesk = freshdesk
         self.sugar = sugar
         self.f2s, self.s2f = customer_map or ({}, {})
+        self._users = None
+
+    def user_directory(self):
+        if self._users is None:
+            self._users = self.cds.users()
+        return self._users
 
     def customer_for(self, freshdesk_id):
         """Freshdesk company plus the Sugar accounts it maps to (one-to-many is normal here)."""
@@ -103,6 +110,15 @@ def make_handler(service, api_token):
             if url.path == "/healthz":
                 return self._send(200, {"status": "ok"})
             parts = url.path.strip("/").split("/")
+            if url.path == "/users":
+                if not self._authorised():
+                    return self._send(401, {"error": "unauthorised"})
+                try:
+                    users = service.user_directory()
+                except Exception:
+                    log.exception("user directory fetch failed")
+                    return self._send(502, {"error": "upstream unavailable"})
+                return self._send(200, [{"uid": k, "username": v} for k, v in sorted(users.items())])
             if len(parts) == 2 and parts[0] == "customer" and parts[1].isdigit():
                 if not self._authorised():
                     return self._send(401, {"error": "unauthorised"})
@@ -116,6 +132,8 @@ def make_handler(service, api_token):
                     return self._send(401, {"error": "unauthorised"})
                 refresh = parse_qs(url.query).get("refresh", ["0"])[0] == "1"
                 try:
+                    if int(parts[1]) not in service.user_directory():
+                        return self._send(404, {"error": "unknown uid"})
                     feed = service.feed_for(parts[1], refresh=refresh)
                 except Exception:
                     log.exception("feed build failed for uid=%s", parts[1])

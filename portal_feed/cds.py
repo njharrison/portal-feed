@@ -45,5 +45,9 @@ class CdsClient:
             items += self._get("assignedcontent", uid=uid, cid=cid, so=0, sc1=0, sc2=5, lo=0)
         return items
 
+    def users(self):
+        """CDS user directory (op=userselect): the userid is the uid used by the other ops."""
+        return {int(r["userid"]): r["username"] for r in self._get("userselect")}
+
     def unassigned(self, uid, cid=CATEGORY_CURRENT):
         return self._get("unassignedcontent", uid=uid, cid=cid, so=0, sc1=0, sc2=5, lo=0)
